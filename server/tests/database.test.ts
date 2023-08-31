@@ -1,4 +1,4 @@
-import { getDBClient, initialiseUsers } from '../middleware/database';
+import { getDBClient, initialiseUsers } from '../database';
 import bcrypt from 'bcrypt';
 import { app } from '../index';
 import supertest from 'supertest';
@@ -6,10 +6,8 @@ import { expect } from 'chai';
 
 const api = supertest(app);
 
-const dbClient = getDBClient();
-
 const getAllUsers = async () => {
-  const users = dbClient.db().collection('users');
+  const users = getDBClient().db().collection('users');
   const result = users.find({});
 
   const output = [];
@@ -19,6 +17,7 @@ const getAllUsers = async () => {
 };
 
 beforeEach(async () => {
+  const dbClient = getDBClient();
   try {
     await dbClient.db().dropCollection('users');
   } catch (e: unknown) {
@@ -45,7 +44,7 @@ beforeEach(async () => {
 });
 
 after(async () => {
-  await dbClient.close();
+  await getDBClient().close();
 });
 
 describe('User Creation', () => {
@@ -57,7 +56,7 @@ describe('User Creation', () => {
       .send({
         query: `#graphql
           mutation CreateUser {
-            addUser(username: "user2", password: "password") {
+            createUser(username: "user2", password: "password") {
               username,
               created
             }
@@ -78,7 +77,7 @@ describe('User Creation', () => {
       .send({
         query: `#graphql
           mutation CreateUser {
-            addUser(username: "user1", password: "password") {
+            createUser(username: "user1", password: "password") {
               username,
               created
             }

@@ -2,7 +2,7 @@ import { config } from 'dotenv';
 config();
 
 import { Db, MongoClient, ServerApiVersion } from 'mongodb';
-import { UserSchema } from '../schema/User';
+import { UserSchema } from './models/UserSchema';
 
 export const initialiseDB = async () => {
   try {

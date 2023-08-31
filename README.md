@@ -7,7 +7,7 @@ This project has been built with the following technologies:
 
 - `typescript` as its primary language.
 - `express` as the main server framework.
-- `graphql` + `apollo` for a GraphQL based API.
+- `graphql` + `graphql-http` for a GraphQL based API.
 - `mongodb` for data storage. No ODM has been used.
 - `mocha`, `chai` and `supertest` for testing.
 - `bcrypt` for secure password hashing, and `jsonwebtoken` for token-based authorization.
