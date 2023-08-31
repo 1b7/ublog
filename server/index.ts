@@ -44,7 +44,9 @@ app.all('/graphql', createHandler({
 
 app.get('/playground', playground({ endpoint: '/graphql' }));
 
-const port = process.env.PORT;
-app.listen(port, () => {
-  console.log(`API running on port ${port}.`);
-});
+if (process.env.NODE_ENV !== 'TEST') {
+  const port = process.env.PORT;
+  app.listen(port, () => {
+    console.log(`API running on port ${port}.`);
+  });
+}

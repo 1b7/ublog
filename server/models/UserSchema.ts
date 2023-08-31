@@ -4,6 +4,9 @@ export const UserSchema = {
   'properties': {
     'username': {
       'bsonType': 'string',
+      'minLength': 3,
+      'maxLength': 25,
+      'pattern': '^\\w+$',
       'description': '\'username\' is required, and must be of type string' 
     },
 
@@ -40,7 +43,9 @@ export const UserSchema = {
         'properties': {
           'text': {
             'bsonType': 'string',
-            'description': '\'text\' is required, and must be of type string' 
+            'description': '\'text\' is required, and must be of type string' ,
+            'minLength': 1,
+            'maxLength': 250,
           },
           'timestamp': {
             'bsonType': 'date',

@@ -39,8 +39,10 @@ beforeEach(async () => {
     { username: 'user0', password: 'abcdefghij' }, 
     { username: 'user1', password: 'jihgfedcba' }
   ];
-
-  await Promise.all(initialUsers.map(u => createUser(u.username, u.password)));
+  
+  await Promise.all(
+    initialUsers.map(({ username, password }) => createUser(username, password))
+  );
 });
 
 after(async () => {
@@ -60,7 +62,7 @@ describe('User Creation', () => {
               username,
               created
             }
-          } `
+          }`
       })
       .expect(200);
 
@@ -86,6 +88,69 @@ describe('User Creation', () => {
       .expect(200);
 
     expect(result.body.errors[0].message).to.match(/E11000 duplicate key error collection/);
+    const finalState = await getAllUsers();
+    expect(finalState).lengthOf(2);
+  });
+
+  it('Cannot create a user with too short of a username', async () => {
+    const initialState = await getAllUsers();
+    expect(initialState).lengthOf(2);
+
+    const result = await api.post('/graphql')
+      .send({
+        query: `#graphql
+          mutation CreateUser {
+            createUser(username: "aa", password: "password") {
+              username,
+              created
+            }
+          } `
+      })
+      .expect(200);
+
+    expect(result.body.errors[0].message).to.match(/Document failed validation/);
+    const finalState = await getAllUsers();
+    expect(finalState).lengthOf(2);
+  });
+  
+  it('Cannot create a user with too long of a username', async () => {
+    const initialState = await getAllUsers();
+    expect(initialState).lengthOf(2);
+
+    const result = await api.post('/graphql')
+      .send({
+        query: `#graphql
+          mutation CreateUser {
+            createUser(username: "An_Absurdly_Long_Username_", password: "password") {
+              username,
+              created
+            }
+          } `
+      })
+      .expect(200);
+
+    expect(result.body.errors[0].message).to.match(/Document failed validation/);
+    const finalState = await getAllUsers();
+    expect(finalState).lengthOf(2);
+  });
+
+  it('Cannot create a username containing illegal characters', async () => {
+    const initialState = await getAllUsers();
+    expect(initialState).lengthOf(2);
+
+    const result = await api.post('/graphql')
+      .send({
+        query: `#graphql
+          mutation CreateUser {
+            createUser(username: "!illegal!-username", password: "password") {
+              username,
+              created
+            }
+          } `
+      })
+      .expect(200);
+    
+    expect(result.body.errors[0].message).to.match(/Document failed validation/);
     const finalState = await getAllUsers();
     expect(finalState).lengthOf(2);
   });
