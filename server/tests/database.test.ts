@@ -1,18 +1,18 @@
 import { getDBClient, initialiseUsers } from '../database';
 import bcrypt from 'bcrypt';
-import { app } from '../index';
 import supertest from 'supertest';
 import { expect } from 'chai';
 
+import { app } from '../index';
 const api = supertest(app);
 
 const getAllUsers = async () => {
   const users = getDBClient().db().collection('users');
   const result = users.find({});
-
+  
   const output = [];
   for await (const user of result) { output.push(user); }
-
+  
   return output;
 };
 
@@ -50,20 +50,22 @@ after(async () => {
 });
 
 describe('User Creation', () => {
+  const createUserQuery = (username: string, password: string) => ({
+    query: `#graphql
+      mutation CreateUser {
+        createUser(username: "${username}", password: "${password}") {
+          username,
+          created
+        }
+      }`
+  });
+
   it('Can create a new user', async () => {
     const initialState = await getAllUsers();
     expect(initialState).lengthOf(2);
 
     await api.post('/graphql')
-      .send({
-        query: `#graphql
-          mutation CreateUser {
-            createUser(username: "user2", password: "password") {
-              username,
-              created
-            }
-          }`
-      })
+      .send(createUserQuery('user2', 'password'))
       .expect(200);
 
     const finalState = (await getAllUsers()).map(u => u.username);
@@ -76,15 +78,7 @@ describe('User Creation', () => {
     expect(initialState).lengthOf(2);
 
     const result = await api.post('/graphql')
-      .send({
-        query: `#graphql
-          mutation CreateUser {
-            createUser(username: "user1", password: "password") {
-              username,
-              created
-            }
-          } `
-      })
+      .send(createUserQuery('user1', 'password'))
       .expect(200);
 
     expect(result.body.errors[0].message).to.match(/E11000 duplicate key error collection/);
@@ -97,15 +91,7 @@ describe('User Creation', () => {
     expect(initialState).lengthOf(2);
 
     const result = await api.post('/graphql')
-      .send({
-        query: `#graphql
-          mutation CreateUser {
-            createUser(username: "aa", password: "password") {
-              username,
-              created
-            }
-          } `
-      })
+      .send(createUserQuery('aa', 'password'))
       .expect(200);
 
     expect(result.body.errors[0].message).to.match(/Document failed validation/);
@@ -118,15 +104,7 @@ describe('User Creation', () => {
     expect(initialState).lengthOf(2);
 
     const result = await api.post('/graphql')
-      .send({
-        query: `#graphql
-          mutation CreateUser {
-            createUser(username: "An_Absurdly_Long_Username_", password: "password") {
-              username,
-              created
-            }
-          } `
-      })
+      .send(createUserQuery('An_Absurdly_Long_Username_', 'password'))
       .expect(200);
 
     expect(result.body.errors[0].message).to.match(/Document failed validation/);
@@ -139,19 +117,66 @@ describe('User Creation', () => {
     expect(initialState).lengthOf(2);
 
     const result = await api.post('/graphql')
-      .send({
-        query: `#graphql
-          mutation CreateUser {
-            createUser(username: "!illegal!-username", password: "password") {
-              username,
-              created
-            }
-          } `
-      })
+      .send(createUserQuery('illegal!-username', 'password'))
       .expect(200);
     
     expect(result.body.errors[0].message).to.match(/Document failed validation/);
     const finalState = await getAllUsers();
     expect(finalState).lengthOf(2);
+  });
+});
+
+const createLoginQuery = (username: string, password: string) => ({
+  query: `#graphql
+      mutation Login { login(username: "${username}", password: "${password}") }`
+});
+
+describe('Login Process', () => {
+  it('Legitimate users can sign in', async () => {
+    const result = await api.post('/graphql')
+      .send(createLoginQuery('user0', 'abcdefghij'))
+      .expect(200);
+    expect(result.body.data.login).to.exist;
+  });
+
+  it('Incorrect credentials are rejected', async () => {
+    const result = await api.post('/graphql')
+      .send(createLoginQuery('user0', 'NotTheRightPassword!'))
+      .expect(200);
+    expect(result.body.data.login).equal('Incorrect username or password');
+  });
+});
+
+describe('Posts', () => {
+  let authorization: string;
+  const credentials = { username: 'user0', password: 'abcdefghij' };
+
+  before(async () => {
+    const result = await api.post('/graphql')
+      .send(createLoginQuery(credentials.username, credentials.password))
+      .expect(200);
+    authorization = `bearer ${result.body.data.login}`;
+  });
+
+  it('Can be created', async () => {
+    const result = await api.post('/graphql')
+      .set('authorization', authorization)
+      .send({
+        query: `#graphql
+          mutation CreatePost {
+            createPost(text: "Some blog text") {
+              text,
+              timestamp
+            }
+          } `
+      })
+      .expect(200);
+    
+    const finalState = getAllUsers();
+    const user = (await finalState).find(u => u.username === credentials.username);
+    const newPost = user!.posts[0];
+
+    expect(result.body.data.createPost).includes({ text: 'Some blog text' });
+    expect(newPost).includes({ text: 'Some blog text' });
   });
 });

@@ -1,25 +1,25 @@
-import { GraphQLObjectType, GraphQLString } from 'graphql';
-
-const posts = [
-  {
-    text: 'Hello World',
-    author: 'users[0]',
-  },
-  {
-    text: 'Hello Two',
-    author: 'users[0]',
-  },
-  {
-    text: 'Some important text',
-    author: 'users[1]',
-  }
-];
-export const getAllPosts = () => posts;
+import { getDBClient } from '../database';
+import { PushOperator } from 'mongodb';
   
-export const PostType = new GraphQLObjectType({
-  name: 'Post',
-  fields: {
-    text: { type: GraphQLString },
-    author: { type: GraphQLString }
-  }
-});
+export const createPost = async (username: string, text: string): Promise<object | string>  => {
+  const newPost = { text, timestamp: new Date() };
+  const result = await getDBClient().db().collection('users')
+    .findOneAndUpdate(
+      { username }, 
+      { '$push': { posts: newPost } as unknown as PushOperator<Document> },
+      { 'returnDocument': 'after' }
+    )
+    .then((result) => {
+      const newPost = result!.posts[result!.posts.length - 1];
+      return newPost;
+    })
+    .catch((e: unknown) => {
+      if (e instanceof Error && e.message.endsWith('Document failed validation')) {
+        return'Validation error';
+      }
+      console.error(e);
+      return 'Internal server error';
+    });
+
+  return result;
+};
