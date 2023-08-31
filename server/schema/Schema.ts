@@ -33,6 +33,18 @@ export const schema = new GraphQLSchema({
           password: { type: GraphQLString }
         },
         resolve(_root, { username, password }) { return createUser(username, password); }
+      },
+
+      authTest: {
+        type: GraphQLString,
+        resolve(root, args, context) {
+          if (context.auth === undefined) {
+            return 'Not signed in!';
+          } else {
+            console.log(context.auth);
+            return `Signed in as: '${ context.auth.username }'`;
+          }
+        }
       }
     }
   })

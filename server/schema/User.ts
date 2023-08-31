@@ -24,8 +24,8 @@ export const createUser = async (username: string, plaintext: string) => {
 };
   
 export const loginUser = async (username: string, plaintext: string) => {
-  if (!process.env.SECRET) {
-    console.error('env.SECRET MUST be defined for this application to function.');
+  if (!process.env.JWT_SECRET) {
+    console.error('env.JWT_SECRET MUST be defined for this application to function.');
     process.exit(3); 
   }
   
@@ -39,7 +39,7 @@ export const loginUser = async (username: string, plaintext: string) => {
     }
   
     const hashesMatch = await bcrypt.compare(plaintext, user.passwordHash);
-    if (hashesMatch) return jwt.sign({ username }, process.env.SECRET, { expiresIn: 60 * 60 });
+    if (hashesMatch) return jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: 60 * 60 });
   } 
   
   return 'Incorrect username or password';

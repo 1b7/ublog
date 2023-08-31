@@ -5,6 +5,7 @@ import { Db, MongoClient, ServerApiVersion } from 'mongodb';
 import { UserSchema } from './models/UserSchema';
 
 export const initialiseDB = async () => {
+  console.log('Connecting to MongoDB...');
   try {
     await dbClient.connect();
     await initialiseUsers(dbClient.db());
@@ -40,14 +41,7 @@ export const initialiseUsers = async (db: Db) => {
   }
 };
 
-console.log('Connecting to MongoDB...');
-const mongoURI = process.env.NODE_ENV === 'TEST'
-  ? process.env.MONGODB_TEST_URI
-  : process.env.MONGODB_URI;
-
-if (!mongoURI) throw new Error('MongoDB URI must be defined in `.env`');
-
-const dbClient = new MongoClient(mongoURI, {
+const dbClient = new MongoClient(process.env.MONGODB_URI!, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,

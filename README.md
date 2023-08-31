@@ -25,7 +25,7 @@ Basic Functionality:
 - [ ] View all posts from followed users.
 
 ## Building this project
-- Make a copy of `.example.env` and rename this to `.env`; alter the values it contains
-as appropriate (i.e. add values for `MONGODB_URI`, `MONGODB_TEST_URI` and `SECRET`).
+- Make two copies of `.example.env` and rename these to `.env` and `.env.test` respectively. 
+  Add appropriate values for the `PORT`, `MONGODB_URI` and `JWT_SECRET`. 
 - Run `npm install`;
 - Run `npm start`.
