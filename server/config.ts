@@ -9,18 +9,16 @@ export const initialiseEnv = () => {
     : '.env';
   config({ path: path.resolve(process.cwd(), envPath) });
 
-  if (!process.env.JWT_SECRET) {
-    console.error('ENV error: JWT_SECRET is not set; please do so. (A string used to sign web tokens).');
-    process.exit(4);
-  }
+  const envVars =  [
+    { label: 'JWT_SECRET',  description: 'A string used to sign web tokens'    },
+    { label: 'MONGODB_URI', description: 'A URI string for a MongoDB database' },
+    { label: 'PORT',        description: 'The port the API will run on'        },
+  ];
 
-  if (!process.env.MONGODB_URI) {
-    console.error('ENV error: MONGODB_URI is not set; please do so. (A URI string for a MongoDB database).');
-    process.exit(5);
-  }
-    
-  if (!process.env.PORT) {
-    console.error('ENV error: PORT is not set; please do so. (The port the API will run on).');
-    process.exit(6);
-  }
+  envVars.forEach(v => {
+    if (!process.env[v.label]) {
+      console.error(`ENV error: ${v.label} is not set; please do so. (${v.description}).`);
+      process.exit(4);
+    }
+  });
 };
