@@ -20,8 +20,8 @@ Basic Functionality:
 
 - [x] User Creation.
 - [x] Login Process.
-- [ ] Create a new post, with bearer-based authorization.
-- [ ] Un/Follow a user.
+- [x] Create a new post, with bearer-based authorization.
+- [x] Un/Follow a user.
 - [ ] View all posts from followed users.
 
 ## Building this project

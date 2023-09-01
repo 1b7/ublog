@@ -22,10 +22,10 @@ export const UserSchema = {
 
     'following': {
       'bsonType': [ 'array' ],
-      'description': 'An array of user objectIds; this is required',
+      'description': 'An array of username strings; this is required',
       'minItems': 0, 
       'items': {
-        'bsonType': ['objectId'],
+        'bsonType': ['string'],
         'uniqueItems': true,
         'additionalProperties': false
       }

@@ -180,3 +180,143 @@ describe('Posts', () => {
     expect(newPost).includes({ text: 'Some blog text' });
   });
 });
+
+describe('Followers', () => {
+  let authorization: string;
+  const credentials = { username: 'user0', password: 'abcdefghij' };
+
+  before(async () => {
+    const result = await api.post('/graphql')
+      .send(createLoginQuery(credentials.username, credentials.password))
+      .expect(200);
+    authorization = `bearer ${result.body.data.login}`;
+  });
+
+  it('Can be added', async () => {
+    const result = await api.post('/graphql')
+      .set('authorization', authorization)
+      .send({
+        query: `#graphql
+          mutation AddFollower {
+            follow(username: "user1")
+          } `
+      })
+      .expect(200);
+
+    expect(result.body).to.deep.equal({ data: { follow: 'user1' }});
+    
+    const finalState = await getAllUsers();
+    const user = finalState.find(u => u.username === credentials.username)!;
+    expect(user.following).deep.equals(['user1']);
+  });
+
+  it('One user cannot be followed twice at once', async () => {
+    await api.post('/graphql')
+      .set('authorization', authorization)
+      .send({
+        query: `#graphql
+          mutation AddFollower {
+            follow(username: "user1")
+          } `
+      })
+      .expect(200);
+    
+    const result = await api.post('/graphql')
+      .set('authorization', authorization)
+      .send({
+        query: `#graphql
+          mutation AddFollower {
+            follow(username: "user1")
+          } `
+      })
+      .expect(200);
+
+    expect(result.body).to.deep.equal({ data: { follow: 'user1' }});
+    
+    const finalState = await getAllUsers();
+    const user = finalState.find(u => u.username === credentials.username)!;
+    expect(user.following).deep.equals(['user1']);
+  });
+
+  it('Cannot follow non-existent users', async () => {
+    await api.post('/graphql')
+      .set('authorization', authorization)
+      .send({
+        query: `#graphql
+          mutation AddFollower {
+            follow(username: "doesnotexist")
+          } `
+      })
+      .expect(200);
+
+    
+    const finalState = await getAllUsers();
+    const user = finalState.find(u => u.username === credentials.username)!;
+    expect(user.following).deep.equals([]);
+  });
+
+  it('Users can be unfollowed', async() => {
+    await api.post('/graphql')
+      .set('authorization', authorization)
+      .send({
+        query: `#graphql
+          mutation AddFollower {
+            follow(username: "user1")
+          } `
+      })
+      .expect(200);
+
+    const intermediateState = await getAllUsers();
+    let user = intermediateState.find(u => u.username === credentials.username)!;
+    expect(user.following).deep.equals(['user1']);
+    
+    const result = await api.post('/graphql')
+      .set('authorization', authorization)
+      .send({
+        query: `#graphql
+          mutation AddFollower {
+            unfollow(username: "user1")
+          } `
+      })
+      .expect(200);
+      
+    expect(result.body).to.deep.equal({ data: { unfollow: 'user1'}});
+    const finalState = await getAllUsers();
+    user = finalState.find(u => u.username === credentials.username)!;
+    expect(user.following).deep.equals([]);
+  });
+
+  it('Non-followed users can be unfollowed without error', async() => {
+    const result = await api.post('/graphql')
+      .set('authorization', authorization)
+      .send({
+        query: `#graphql
+          mutation AddFollower {
+            unfollow(username: "user1")
+          } `
+      })
+      .expect(200);
+      
+    expect(result.body).to.deep.equal({ data: { unfollow: 'user1'}});
+    const finalState = await getAllUsers();
+    const user = finalState.find(u => u.username === credentials.username)!;
+    expect(user.following).deep.equals([]);
+  });
+
+  it('Cannot unfollow non-existent users', async() => {
+    const result = await api.post('/graphql')
+      .set('authorization', authorization)
+      .send({
+        query: `#graphql
+          mutation AddFollower {
+            unfollow(username: "doesnotexist")
+          } `
+      })
+      .expect(200);
+    
+    expect(result.body.errors[0].message).equals('No such user exists');
+    const finalState = await getAllUsers();
+    const user = finalState.find(u => u.username === credentials.username)!;
+    expect(user.following).deep.equals([]);
+  });
+});

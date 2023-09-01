@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { PullOperator, SetFields } from 'mongodb';
 
 import { getDBClient } from '../database';
   
@@ -9,6 +10,29 @@ export const createUser = async (username: string, plaintext: string) => {
   const users = getDBClient().db().collection('users');
   await users.insertOne(newUser);
 };
+
+const setFollowUser = async (addFollower: boolean, currentUser: string, targetUser: string) => {
+  const operation = addFollower
+    ? { '$addToSet': { following: targetUser } as unknown as SetFields<Document> }
+    : { '$pull': { following: targetUser } as unknown as PullOperator<Document> };
+  
+  const users = getDBClient().db().collection('users');
+  const toFollow = await users.findOne({ username: targetUser });
+  if (!toFollow) return 'No such user exists';
+
+  return await users.findOneAndUpdate(
+    { username: currentUser },
+    operation,
+    { 'returnDocument': 'after' }
+  ).then(() => targetUser)
+    .catch(() => 'Internal server error');
+};
+
+export const followUser = async (currentUser: string, targetUser: string) => 
+  setFollowUser(true, currentUser, targetUser);
+
+export const unfollowUser = async (currentUser: string, targetUser: string) =>
+  setFollowUser(false, currentUser, targetUser);
 
 export const getUser = (username: string) => 
   getDBClient().db().collection('users').findOne({ username });
