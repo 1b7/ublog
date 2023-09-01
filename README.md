@@ -22,7 +22,7 @@ Basic Functionality:
 - [x] Login Process.
 - [x] Create a new post, with bearer-based authorization.
 - [x] Un/Follow a user.
-- [ ] View all posts from followed users.
+- [x] View all posts from followed users.
 
 ## Building this project
 - Make two copies of `.example.env` and rename these to `.env` and `.env.test` respectively. 

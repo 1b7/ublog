@@ -8,12 +8,7 @@ const api = supertest(app);
 
 const getAllUsers = async () => {
   const users = getDBClient().db().collection('users');
-  const result = users.find({});
-  
-  const output = [];
-  for await (const user of result) { output.push(user); }
-  
-  return output;
+  return await users.find({}).toArray();
 };
 
 beforeEach(async () => {
@@ -181,7 +176,7 @@ describe('Posts', () => {
   });
 });
 
-describe('Followers', () => {
+describe('Following', () => {
   let authorization: string;
   const credentials = { username: 'user0', password: 'abcdefghij' };
 
@@ -313,10 +308,79 @@ describe('Followers', () => {
           } `
       })
       .expect(200);
-    
+      
+
     expect(result.body.errors[0].message).equals('No such user exists');
     const finalState = await getAllUsers();
     const user = finalState.find(u => u.username === credentials.username)!;
     expect(user.following).deep.equals([]);
+  });
+
+  it('Can see posts from followed users', async () => {
+    const otherCredentials = { username: 'user1', password: 'jihgfedcba' };
+    let result = await api.post('/graphql')
+      .send(createLoginQuery(otherCredentials.username, otherCredentials.password))
+      .expect(200);
+    const otherAuth = `bearer ${result.body.data.login}`;
+
+    // Using user1 account, create Post to be viewed later. 
+    await api.post('/graphql')
+      .set('authorization', otherAuth)
+      .send({
+        query: `#graphql
+          mutation CreatePost {
+            createPost(text: "Some text") { text }
+          }`
+      })
+      .expect(200);
+
+    await api.post('/graphql')
+      .set('authorization', otherAuth)
+      .send({
+        query: `#graphql
+          mutation CreatePost {
+            createPost(text: "Some other text") { text }
+          }`
+      })
+      .expect(200);
+
+    // Set user0 to follow user1.
+    await api.post('/graphql')
+      .set('authorization', authorization)
+      .send({
+        query: `#graphql
+          mutation AddFollower {
+            follow(username: "user1")
+          } `
+      })
+      .expect(200);
+
+    // Test if user0 now receives posts from user1.
+    result = await api.post('/graphql')
+      .set('authorization', authorization)
+      .send({
+        query: `#graphql
+          query Feed {
+            loggedIn {
+              following {
+                username
+                posts { text }
+              }
+            }
+          } `
+      })
+      .expect(200);
+    
+    expect(result.body.data.loggedIn).deep.equals({
+      following: [
+        { 
+          username: 'user1', 
+          posts: [ 
+            { text: 'Some text' },
+            { text: 'Some other text' },
+          ] 
+        }
+      ]
+    });
   });
 });
