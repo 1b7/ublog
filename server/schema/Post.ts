@@ -1,8 +1,8 @@
 import { getDBClient } from '../database';
-import { PushOperator } from 'mongodb';
+import { ObjectId, PushOperator } from 'mongodb';
   
 export const createPost = async (username: string, text: string): Promise<object | string>  => {
-  const newPost = { text, timestamp: new Date() };
+  const newPost = { id: new ObjectId(), text, timestamp: new Date() };
   const result = await getDBClient().db().collection('users')
     .findOneAndUpdate(
       { username }, 

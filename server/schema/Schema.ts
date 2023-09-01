@@ -12,6 +12,7 @@ export const schema = buildSchema(`#graphql
   }
 
   type Post {
+    id: ID!,
     text: String!,
     timestamp: String!
   }

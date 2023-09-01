@@ -37,13 +37,17 @@ export const UserSchema = {
       'minItems': 0, 
       'items': {
         'bsonType': ['object'],
-        'required': ['text', 'timestamp'],
+        'required': ['id', 'text', 'timestamp'],
         'uniqueItems': true,
         'additionalProperties': false,
         'properties': {
+          'id': {
+            'bsonType': 'objectId',
+            'description': '\'id\' is required, and must be of type objectId'
+          },
           'text': {
             'bsonType': 'string',
-            'description': '\'text\' is required, and must be of type string' ,
+            'description': '\'text\' is required, and must be of type string',
             'minLength': 1,
             'maxLength': 250,
           },

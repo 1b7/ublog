@@ -1,8 +1,8 @@
-import { config } from 'dotenv';
-config();
-
 import { Db, MongoClient, ServerApiVersion } from 'mongodb';
 import { UserSchema } from './models/UserSchema';
+import { initialiseEnv } from './config';
+
+if (!process.env.MONGODB_URI) { initialiseEnv(); }
 
 export const initialiseDB = async () => {
   console.log('Connecting to MongoDB...');
