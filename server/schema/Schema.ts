@@ -5,7 +5,7 @@ import { createPost } from './Post';
 
 export const schema = buildSchema(`#graphql 
   type User {
-    username: String!,
+    username: ID!,
     created: String!,
     posts: [Post]!,
     following: [User]!
@@ -17,21 +17,24 @@ export const schema = buildSchema(`#graphql
   }
 
   type Query {
-    user(username: String!): User
+    user(username: ID!): User
+    loggedIn: User!
   }
 
   type Mutation {
-    login(username: String!, password: String!): String,
-    createUser(username: String!, password: String!): User,
+    login(username: ID!, password: String!): String,
+    createUser(username: ID!, password: String!): User,
     createPost(text: String!): Post,
-    follow(username: String!): String,
-    unfollow(username: String!): String
+    follow(username: ID!): String,
+    unfollow(username: ID!): String
   }
 `);
 
 export const resolver = {
-  user: ({ username }: { username: string }) => 
-    getUser(username),
+  user: ({ username }: { username: string }) => getUser(username),
+
+  loggedIn: (_args: unknown, context: { auth: { username: string } }) => 
+    getUser(context.auth.username),
   
   login: ({ username, password }: { username: string, password: string }) => 
     loginUser(username, password),

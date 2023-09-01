@@ -12,14 +12,14 @@ export const createUser = async (username: string, plaintext: string) => {
 };
 
 const setFollowUser = async (addFollower: boolean, currentUser: string, targetUser: string) => {
-  const operation = addFollower
-    ? { '$addToSet': { following: targetUser } as unknown as SetFields<Document> }
-    : { '$pull': { following: targetUser } as unknown as PullOperator<Document> };
-  
   const users = getDBClient().db().collection('users');
   const toFollow = await users.findOne({ username: targetUser });
   if (!toFollow) return 'No such user exists';
 
+  const operation = addFollower
+    ? { '$addToSet': { following: toFollow.username } as unknown as SetFields<Document> }
+    : { '$pull': { following: toFollow.username } as unknown as PullOperator<Document> };
+  
   return await users.findOneAndUpdate(
     { username: currentUser },
     operation,
@@ -34,8 +34,23 @@ export const followUser = async (currentUser: string, targetUser: string) =>
 export const unfollowUser = async (currentUser: string, targetUser: string) =>
   setFollowUser(false, currentUser, targetUser);
 
-export const getUser = (username: string) => 
-  getDBClient().db().collection('users').findOne({ username });
+export const getUser = async (username: string) => {
+  const userCollection = getDBClient().db().collection('users');
+  const user = await userCollection.findOne({ username });
+  if (!user) return 'Error: User could not be found';
+  delete user.passwordHash;
+
+  // Retrieve and insert details of followed accounts:
+  const following = await userCollection
+    .find({ username: { $in: user.following } })
+    .map(followedUser => {
+      delete followedUser.passwordHash;
+      return followedUser;
+    }).toArray();
+  user.following = following;
+
+  return user;
+};
   
 export const loginUser = async (username: string, plaintext: string) => {
   if (!process.env.JWT_SECRET) {
