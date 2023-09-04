@@ -1,31 +1,50 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { PullOperator, SetFields } from 'mongodb';
+import { Document, PullOperator, SetFields } from 'mongodb';
+import { Result, ok, err } from './Schema';
 
 import { getDBClient } from '../database';
   
 export const createUser = async (username: string, plaintext: string) => {
-  const passwordHash = await bcrypt.hash(plaintext, 10);
-  const newUser = { username, passwordHash, created: new Date(), posts: [], following: [] };
-  const users = getDBClient().db().collection('users');
-  await users.insertOne(newUser);
+  try {
+    const passwordHash = await bcrypt.hash(plaintext, 10);
+    const newUser = { username, passwordHash, created: new Date(), posts: [], following: [] };
+    const users = getDBClient().db().collection('users');
+    const addedUser =  await users.insertOne(newUser);
+    return ok({ ...addedUser });
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('E11000 duplicate key error')) {
+      return err('User already exists');
+    }
+    if (e instanceof Error && e.message.startsWith('Document failed validation')) {
+      return err('Validation error');
+    }
+    console.error(e);
+    return err('Internal server error');
+  }
 };
 
-const setFollowUser = async (addFollower: boolean, currentUser: string, targetUser: string) => {
+const setFollowUser = async (addFollower: boolean, currentUser: string, targetUser: string): Promise<Result> => {
   const users = getDBClient().db().collection('users');
   const toFollow = await users.findOne({ username: targetUser });
-  if (!toFollow) return 'No such user exists';
+  if (!toFollow) return err('No such user exists');
 
   const operation = addFollower
     ? { '$addToSet': { following: toFollow.username } as unknown as SetFields<Document> }
     : { '$pull': { following: toFollow.username } as unknown as PullOperator<Document> };
-  
-  return await users.findOneAndUpdate(
-    { username: currentUser },
-    operation,
-    { 'returnDocument': 'after' }
-  ).then(() => targetUser)
-    .catch(() => 'Internal server error');
+
+  try {
+    const result = await users.findOneAndUpdate(
+      { username: currentUser },
+      operation,
+      { 'returnDocument': 'after' }
+    );
+    if (!result) return err('No such user exists');
+    return ok({ message: `Successfully ${addFollower ? 'followed' : 'unfollowed'} user` });
+  } catch (e) {
+    console.error(e);
+    return err('Internal server error');
+  }
 };
 
 export const followUser = async (currentUser: string, targetUser: string) => 
@@ -34,10 +53,10 @@ export const followUser = async (currentUser: string, targetUser: string) =>
 export const unfollowUser = async (currentUser: string, targetUser: string) =>
   setFollowUser(false, currentUser, targetUser);
 
-export const getUser = async (username: string) => {
+export const getUser = async (username: string, depth = 1): Promise<Result> => {
   const userCollection = getDBClient().db().collection('users');
   const user = await userCollection.findOne({ username });
-  if (!user) return 'Error: User could not be found';
+  if (!user) return err('User could not be found');
   delete user.passwordHash;
 
   // Retrieve and insert details of followed accounts:
@@ -47,12 +66,25 @@ export const getUser = async (username: string) => {
       delete followedUser.passwordHash;
       return followedUser;
     }).toArray();
-  user.following = following;
+    
+  if (depth > 0) {
+    user.following = await Promise.all(following.map(
+      async u => (await getUser(u.username, depth - 1)).data
+    ));
+  } else {
+    user.following = following;
+  }
 
-  return user;
+  // Retrieve and insert details of posts:
+  const posts = await getDBClient().db().collection('posts')
+    .find({ author: username })
+    .toArray();
+  user.posts = posts;
+
+  return ok(user);
 };
   
-export const loginUser = async (username: string, plaintext: string) => {
+export const loginUser = async (username: string, plaintext: string): Promise<Result> => {
   if (!process.env.JWT_SECRET) {
     console.error('env.JWT_SECRET MUST be defined for this application to function.');
     process.exit(3); 
@@ -64,12 +96,14 @@ export const loginUser = async (username: string, plaintext: string) => {
   if (user) {
     if (!user.passwordHash) {
       console.error(`Login for user: '${user.username}' attempted, but has no passwordHash.`);
-      return { error: 'Something went wrong!' };
+      err('Internal Server Error');
     }
   
     const hashesMatch = await bcrypt.compare(plaintext, user.passwordHash);
-    if (hashesMatch) return jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: 60 * 60 });
+    if (hashesMatch) return ok(
+      ({ token: jwt.sign({ username }, process.env.JWT_SECRET, { expiresIn: 60 * 60 }) })
+    );
   } 
   
-  return 'Incorrect username or password';
+  return err('Incorrect username or password');
 };

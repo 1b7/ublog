@@ -1,5 +1,6 @@
-import { Db, MongoClient, ServerApiVersion } from 'mongodb';
-import { UserSchema } from './models/UserSchema';
+import { MongoClient, ServerApiVersion } from 'mongodb';
+import { initialiseUsers } from './models/UserSchema';
+import { initialisePosts } from './models/PostSchema';
 import { initialiseEnv } from './config';
 
 if (!process.env.MONGODB_URI) { initialiseEnv(); }
@@ -9,6 +10,7 @@ export const initialiseDB = async () => {
   try {
     await dbClient.connect();
     await initialiseUsers(dbClient.db());
+    await initialisePosts(dbClient.db());
     console.log('Successfully initialised MongoDB!');
     return dbClient;
   } catch (e) {
@@ -16,28 +18,6 @@ export const initialiseDB = async () => {
     console.error('Error connecting to MongoDB, exiting application');
     await dbClient.close();
     process.exit(2);
-  }
-};
-
-export const initialiseUsers = async (db: Db) => {
-  try {
-    const userCollection = await db.createCollection('users', {
-      validator: {  $jsonSchema: UserSchema }
-    });
-    await userCollection.createIndex({ username: 1 }, { unique: true });
-
-    console.log('User collection has been created.');
-  } catch (error) {
-    if (error instanceof Error) {
-      if (/^Collection (\w+\.)?users already exists.$/.test(error.message)) {
-        console.log('User collection already exists and will not be recreated.');
-      } else {
-        console.error(error);
-      }
-    } else {
-      console.error('Non-Error value passed to catch block.'); 
-      process.exit(1);
-    }
   }
 };
 
